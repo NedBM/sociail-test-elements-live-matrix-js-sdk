@@ -896,6 +896,11 @@ interface IWhoamiResponse {
     device_id?: string;
     is_guest?: boolean;
 }
+
+interface Skill {
+    id: string;
+    name: string;
+}
 /* eslint-enable camelcase */
 
 // We're using this constant for methods overloading and inspect whether a variable
@@ -10306,6 +10311,63 @@ export class MatrixClient extends TypedEventEmitter<EmittedEvents, ClientEventHa
             prefix: ClientPrefix.Unstable + "/org.matrix.msc2965",
         });
     }
+
+
+
+    /**
+ * Get the user's skills from account data
+ * @returns Promise which resolves to an array of skills
+ */
+public async getSkills(): Promise<Skill[]> {
+    try {
+        const event = await this.getAccountDataFromServer<{ skills: Skill[] }>('m.skill');
+        return event?.skills || [];
+    } catch (error) {
+        this.logger.error("Failed to fetch skills from account data", error);
+        return [];
+    }
+}
+
+/**
+ * Set the user's skills in account data
+ * @param skills - The array of skills to save
+ * @returns Promise which resolves when the skills have been saved
+ */
+public async setSkills(skills: Skill[]): Promise<void> {
+    try {
+        await this.setAccountData('m.skill', { skills });
+    } catch (error) {
+        this.logger.error("Failed to save skills to account data", error);
+        throw error;
+    }
+}
+
+/**
+ * Add a new skill to the user's account data
+ * @param skillName - The name of the skill to add
+ * @returns Promise which resolves to the updated array of skills
+ */
+public async addSkill(skillName: string): Promise<Skill[]> {
+    const currentSkills = await this.getSkills();
+    const newSkill: Skill = { id: Date.now().toString(), name: skillName };
+    const updatedSkills = [...currentSkills, newSkill];
+    await this.setSkills(updatedSkills);
+    return updatedSkills;
+}
+
+/**
+ * Remove a skill from the user's account data
+ * @param skillId - The ID of the skill to remove
+ * @returns Promise which resolves to the updated array of skills
+ */
+public async removeSkill(skillId: string): Promise<Skill[]> {
+    const currentSkills = await this.getSkills();
+    const updatedSkills = currentSkills.filter(skill => skill.id !== skillId);
+    await this.setSkills(updatedSkills);
+    return updatedSkills;
+}
+
+
 }
 
 function getUnstableDelayQueryOpts(delayOpts: SendDelayedEventRequestOpts): QueryDict {
